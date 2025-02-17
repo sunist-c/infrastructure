@@ -39,7 +39,7 @@ func (m mysqlDriver) BuildDataSource(dsn database.DSN) string {
 
 func (m mysqlDriver) Connect(_ context.Context, option database.Options) (database.Database, error) {
 	if option.Logger == nil {
-		option.Logger = logger.Default()
+		option.Logger = logger.NewLogger(logger.LevelTrace)
 	}
 
 	db, connectErr := gorm.Open(mysql.Open(option.DataSource), &gorm.Config{

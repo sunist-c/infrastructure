@@ -38,7 +38,7 @@ func (p postgresDriver) BuildDataSource(dsn database.DSN) string {
 
 func (p postgresDriver) Connect(_ context.Context, option database.Options) (database.Database, error) {
 	if option.Logger == nil {
-		option.Logger = logger.Default()
+		option.Logger = logger.NewLogger(logger.LevelTrace)
 	}
 
 	db, connectErr := gorm.Open(postgres.Open(option.DataSource), &gorm.Config{

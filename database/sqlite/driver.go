@@ -27,12 +27,14 @@ func (s sqliteDriver) BuildDataSource(dsn database.DSN) string {
 	return dsn.Host
 }
 
-func (s sqliteDriver) Connect(ctx context.Context, option database.Options) (database.Database, error) {
+func (s sqliteDriver) Connect(_ context.Context, option database.Options) (database.Database, error) {
 	if option.Logger == nil {
-		option.Logger = logger.Default()
+		option.Logger = logger.NewLogger(logger.LevelTrace)
 	}
 
-	db, connectErr := gorm.Open(sqlite.Open(option.DataSource))
+	db, connectErr := gorm.Open(sqlite.Open(option.DataSource), &gorm.Config{
+		Logger: database.NewDBLogger(option.Logger),
+	})
 	if connectErr != nil {
 		return nil, connectErr
 	}

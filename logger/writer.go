@@ -1,158 +1,95 @@
 package logger
 
 import (
+	"fmt"
+	"github.com/alioth-center/infrastructure/utils/console"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"sync/atomic"
-	"time"
 
-	"github.com/alioth-center/infrastructure/exit"
 	"github.com/alioth-center/infrastructure/utils/concurrency"
+	"github.com/alioth-center/infrastructure/utils/timezone"
 )
 
-type Writer interface {
-	Write(data []byte)
-	Close()
+var DefaultFileWriter = NewFileWriter()
+
+type FileWriter interface {
+	WriteLog(content []byte)
 }
 
-var fileWriters = concurrency.NewMap[string, Writer]()
-
-type fileLogWriter struct {
-	f      *os.File
-	buffer chan []byte
-	closed atomic.Bool
+type fileWriter struct {
+	rotatorArgs atomic.Int64
+	files       concurrency.Map[string, *os.File]
+	alerts      concurrency.Map[string, *sync.Once]
+	exitMtx     sync.RWMutex
 }
 
-func (fw *fileLogWriter) Write(data []byte) {
-	if !fw.closed.Load() {
-		fw.buffer <- data
+// WriteLog writes the log content to the file.
+// This function will write the log content to the file based on the rotator type.
+// Any error occurred during the write operation will be written to the stdout.
+//
+// Parameters:
+//
+//	content ([]byte): The log content to be written to the file.
+func (fw *fileWriter) WriteLog(content []byte) {
+	file := fw.getLogFile(int64(len(content)))
+	_, writeErr := file.Write(content)
+	if writeErr != nil {
+		_, _ = os.Stdout.Write(content)
 	}
 }
 
-func (fw *fileLogWriter) Close() {
-	if !fw.closed.Load() {
-		fw.closed.Store(true)
-		close(fw.buffer)
-		for data := range fw.buffer {
-			_, _ = fw.f.Write(data)
-		}
-		_ = fw.f.Close()
-	}
-}
-
-func (fw *fileLogWriter) serve() {
-	exit.RegisterExitEvent(func(_ os.Signal) {
-		fw.Close()
-	}, "EXIT_FILE_LOGGER:"+fw.f.Name())
-
-	for data := range fw.buffer {
-		_, _ = fw.f.Write(data)
-	}
-}
-
-func NewFileWriter(path string) Writer {
-	// exist file writer, return it
-	if w, ok := fileWriters.Get(path); ok {
-		return w
+// getLogFile returns the file to write the log content.
+// This function will return the non-nil file based on the rotator type.
+func (fw *fileWriter) getLogFile(delta int64) *os.File {
+	writeFile := ""
+	switch strings.ToUpper(RotatorType) {
+	case RotatorTypeTime:
+		writeFile = TimeRotator.Rotate(timezone.NowInLocalTime())
+	case RotatorTypeLine:
+		writeFile = LineRotator.Rotate(fw.rotatorArgs.Add(1))
+	case RotatorTypeSize:
+		writeFile = SizeRotator.Rotate(fw.rotatorArgs.Add(delta))
+	case RotatorTypeNone:
+		writeFile = NoRotator.Rotate("logs")
 	}
 
-	f, e := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666)
-	if e != nil {
-		return nil
+	if writeFile == "" {
+		return os.Stdout
+	}
+	writeFile = fmt.Sprintf("%s.jsonl", filepath.Join(LogPath, writeFile))
+	if file, ok := fw.files.Get(writeFile); ok {
+		return file
 	}
 
-	w := &fileLogWriter{
-		f:      f,
-		buffer: make(chan []byte, 1024),
-		closed: atomic.Bool{},
+	file, err := os.OpenFile(writeFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o755)
+	if err != nil {
+		onceAlert := sync.Once{}
+		onceAlert.Do(func() {
+			console.Print(console.NewBlock().
+				Title("Alioth Framework File Logger Open File Error").
+				Message(
+					console.NewMessage().Index(1).Message("Failed to open file: %s", writeFile),
+					console.NewMessage().Index(2).Message("Error: ").Red(err.Error()),
+				),
+			)
+		})
+		fw.alerts.Set(writeFile, &onceAlert)
+		return os.Stdout
 	}
-	w.closed.Store(false)
-	go w.serve()
-
-	fileWriters.Set(path, w)
-
-	return w
+	fw.files.Set(writeFile, file)
+	return file
 }
 
-type rotationFileWriter struct {
-	baseDir  string
-	rotation func(time.Time) string
-	lastFile atomic.Value
-}
-
-func (r *rotationFileWriter) Write(data []byte) {
-	logFile := filepath.Join(r.baseDir, r.rotation(time.Now()))
-	if r.lastFile.Load() != logFile {
-		lastWriter, exist := fileWriters.Get(logFile)
-		if exist && lastWriter != nil {
-			lastWriter.Close()
-		}
+func NewFileWriter() FileWriter {
+	writer := &fileWriter{
+		rotatorArgs: atomic.Int64{},
+		files:       concurrency.NewMap[string, *os.File](),
+		alerts:      concurrency.NewMap[string, *sync.Once](),
+		exitMtx:     sync.RWMutex{},
 	}
 
-	writer := NewFileWriter(logFile)
-	writer.Write(data)
-}
-
-func (r *rotationFileWriter) Close() {
-	lastFile := r.lastFile.Load().(string)
-	lastWriter, exist := fileWriters.Get(lastFile)
-	if exist && lastWriter != nil {
-		lastWriter.Close()
-	}
-}
-
-func NewTimeBasedRotationFileWriter(directory string, rotation func(time time.Time) (filename string)) Writer {
-	atValue := atomic.Value{}
-	atValue.Store(filepath.Join(directory, rotation(time.Now())))
-	return &rotationFileWriter{
-		baseDir:  directory,
-		rotation: rotation,
-		lastFile: atValue,
-	}
-}
-
-type consoleWriter struct {
-	console *os.File
-}
-
-func (c consoleWriter) Write(data []byte) {
-	if c.console == os.Stdout || c.console == os.Stderr {
-		_, _ = c.console.Write(data)
-	}
-}
-
-func (c consoleWriter) Close() {}
-
-func NewStdoutConsoleWriter() Writer {
-	return consoleWriter{
-		console: os.Stdout,
-	}
-}
-
-func NewStderrConsoleWriter() Writer {
-	return consoleWriter{
-		console: os.Stderr,
-	}
-}
-
-type multiWriter struct {
-	writers []Writer
-}
-
-func (m multiWriter) Write(data []byte) {
-	for _, writer := range m.writers {
-		writer.Write(data)
-	}
-}
-
-func (m multiWriter) Close() {
-	for _, writer := range m.writers {
-		writer.Close()
-	}
-}
-
-func NewMultiWriter(writers ...Writer) Writer {
-	return multiWriter{
-		writers: writers,
-	}
+	return writer
 }
