@@ -7,7 +7,15 @@ import (
 )
 
 type serviceLogger struct {
-	writer logger.LogWriter
+	logLevel logger.Level
+	writer   logger.LogWriter
+}
+
+func NewServiceLogger(logLevel logger.Level, writer logger.LogWriter) ServiceLogger {
+	return &serviceLogger{
+		logLevel: logLevel,
+		writer:   writer,
+	}
 }
 
 func (s *serviceLogger) Debug(field LogField) {
@@ -31,6 +39,10 @@ func (s *serviceLogger) Fatal(field LogField) {
 }
 
 func (s *serviceLogger) log(level logger.Level, field LogField) {
+	if !s.logLevel.ShouldLog(level) {
+		return
+	}
+
 	content := field.Format()
 	content.Level = level.String()
 

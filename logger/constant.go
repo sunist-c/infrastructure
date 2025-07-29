@@ -17,7 +17,7 @@ func (l Level) String() string {
 	return string(l)
 }
 
-func (l Level) shouldLog(level Level) bool {
+func (l Level) ShouldLog(level Level) bool {
 	// logger.Level.shouldLog(input.Level)
 	return lvlMap[l] <= lvlMap[level]
 }
