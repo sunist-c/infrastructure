@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -9,6 +10,10 @@ import (
 	"github.com/alioth-center/infrastructure/exit"
 	"github.com/alioth-center/infrastructure/utils/concurrency"
 )
+
+type LogWriter interface {
+	WriteRaw(log *bytes.Buffer)
+}
 
 type Writer interface {
 	Write(data []byte)

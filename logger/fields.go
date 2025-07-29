@@ -8,25 +8,8 @@ import (
 	"github.com/alioth-center/infrastructure/trace"
 )
 
-type Level string
-
-const (
-	LevelDebug Level = "debug"
-	LevelInfo  Level = "info"
-	LevelWarn  Level = "warn"
-	LevelError Level = "error"
-	LevelFatal Level = "fatal"
-	LevelPanic Level = "panic"
-)
-
-func (l Level) shouldLog(level Level) bool {
-	// logger.Level.shouldLog(input.Level)
-	return LevelValueMap[l] <= LevelValueMap[level]
-}
-
 var (
-	timeFormat    = "2006.01.02-15:04:05.000Z07:00"
-	LevelValueMap = map[Level]int{LevelDebug: 0, LevelInfo: 1, LevelWarn: 2, LevelError: 3, LevelFatal: 4, LevelPanic: 5}
+	timeFormat = "2006.01.02-15:04:05.000Z07:00"
 )
 
 type Entry struct {
@@ -34,6 +17,7 @@ type Entry struct {
 	File     string         `json:"file" yaml:"file" xml:"file"`
 	Level    string         `json:"level" yaml:"level" xml:"level"`
 	Service  string         `json:"service" yaml:"service" xml:"service"`
+	Instance string         `json:"instance" yaml:"instance" xml:"instance"`
 	TraceID  string         `json:"trace_id" yaml:"trace_id" xml:"trace_id"`
 	CallTime string         `json:"call_time" yaml:"call_time" xml:"call_time"`
 	Data     any            `json:"data,omitempty" yaml:"data,omitempty" xml:"data,omitempty"`
@@ -43,16 +27,15 @@ type Entry struct {
 
 type Fields interface {
 	init(ctx context.Context) Fields
-	Export() *Entry
-	WithTraceID(traceID string) Fields
 	WithMessage(message string) Fields
 	WithData(data any) Fields
 	WithField(key string, value any) Fields
-	WithLevel(level Level) Fields
 	WithService(service string) Fields
-	WithCallTime(callTime time.Time) Fields
-	WithBaseFields(base Fields) Fields
-	WithAttachFields(attach Fields) Fields
+}
+
+func NewFields(ctx context.Context) Fields {
+
+	return (&fields{}).init(context.Background())
 }
 
 type fields struct {
@@ -198,12 +181,4 @@ func (f *fields) WithAttachFields(attach Fields) Fields {
 	}
 
 	return f
-}
-
-func NewFields(ctx ...context.Context) Fields {
-	if len(ctx) == 1 {
-		return (&fields{}).init(ctx[0])
-	}
-
-	return (&fields{}).init(context.Background())
 }

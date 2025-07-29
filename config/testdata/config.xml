@@ -1,4 +1,0 @@
-<CustomConfig>
-  <port>8080</port>
-  <backend>https://api.your.com</backend>
-</CustomConfig>
