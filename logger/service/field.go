@@ -19,32 +19,27 @@ func NewField(ctx context.Context) LogField {
 	}
 
 	// attach basic trace info
-	if pb := ctx.Value(trace.BasicType); pb == nil {
+	basic, existBasic := trace.GetTrace(ctx)
+	if !existBasic {
 		panic("non-traced context")
-	} else if cb, ok := pb.(*trace.Basic); !ok || cb == nil {
-		panic("non-traced context")
-	} else {
-		content.Trace = cb.TraceID
-		content.Instance = cb.Instance
-		content.Timestamp = time.Now().Format(time.RFC3339)
-		content.TimeCost = time.Since(cb.TracedAt).String()
 	}
 
 	// initialize log content structure
-	content.LogPoint = trace.Caller(1)
+	content.Trace = basic.TraceID
+	content.Instance = basic.Instance
+	content.Service = basic.Service
+	content.Timestamp = time.Now().Format(time.RFC3339)
+	content.TimeCost = time.Since(basic.TracedAt).String()
+	content.LogPoint = trace.Caller(0)
 	content.Labels = map[string]string{}
 
 	// attach request info if exist
-	if pr := ctx.Value(trace.RequestType); pr == nil {
-		content.RequestInfo = nil
-	} else if cr, ok := pr.(*trace.Request); !ok || cr == nil {
-		content.RequestInfo = nil
-	} else {
+	if request, existRequest := trace.GetRequestInfo(ctx); existRequest {
 		content.RequestInfo = &RequestContent{
-			Method:   cr.Method,
-			Path:     cr.Path,
-			Host:     cr.Host,
-			ClientIP: cr.ClientIP,
+			Method:   request.Method,
+			Path:     request.Path,
+			Host:     request.Host,
+			ClientIP: request.ClientIP,
 		}
 	}
 
@@ -76,11 +71,6 @@ func (f *field) Labels(key string, values ...string) LogField {
 		f.content.Labels[key] = strings.Join(values, ",")
 	}
 
-	return f
-}
-
-func (f *field) Service(service string) LogField {
-	f.content.Service = service
 	return f
 }
 

@@ -1,23 +1,36 @@
 package logger
 
-type Level string
+import "strings"
+
+type Level int8
 
 const (
-	LevelDebug Level = "debug"
-	LevelInfo  Level = "info"
-	LevelWarn  Level = "warn"
-	LevelError Level = "error"
-	LevelFatal Level = "fatal"
-	LevelPanic Level = "panic"
+	LevelDebug Level = 0
+	LevelInfo  Level = 1
+	LevelWarn  Level = 2
+	LevelError Level = 3
+	LevelFatal Level = 4
 )
 
-var lvlMap = map[Level]int{LevelDebug: 0, LevelInfo: 1, LevelWarn: 2, LevelError: 3, LevelFatal: 4, LevelPanic: 5}
+var levelStrings = [...]string{"debug", "info", "warn", "error", "fatal"}
 
 func (l Level) String() string {
-	return string(l)
+	return levelStrings[l]
 }
 
-func (l Level) ShouldLog(level Level) bool {
-	// logger.Level.shouldLog(input.Level)
-	return lvlMap[l] <= lvlMap[level]
+func ParseLevel(level string) Level {
+	switch strings.ToLower(level) {
+	case "debug":
+		return LevelDebug
+	case "info":
+		return LevelInfo
+	case "warn":
+		return LevelWarn
+	case "error":
+		return LevelError
+	case "fatal":
+		return LevelFatal
+	default:
+		return LevelDebug
+	}
 }

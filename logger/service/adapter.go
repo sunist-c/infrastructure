@@ -4,7 +4,6 @@ type LogField interface {
 	Messagef(format string, args ...any) LogField
 	Data(data any) LogField
 	Labels(key string, values ...string) LogField
-	Service(service string) LogField
 	Format() *LogContent
 }
 

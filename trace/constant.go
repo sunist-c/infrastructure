@@ -1,5 +1,16 @@
 package trace
 
+import (
+	"context"
+)
+
+var (
+	instance string
+	service  string
+
+	background = Trace(context.Background())
+)
+
 type Type string
 
 func (t Type) String() string {

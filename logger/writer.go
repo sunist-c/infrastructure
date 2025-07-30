@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/alioth-center/infrastructure/grace"
 	"os"
 	"sync"
+	"sync/atomic"
 )
 
 type fileWriter struct {
@@ -15,10 +17,34 @@ type fileWriter struct {
 	cacheMutex  sync.RWMutex
 	logBuffer   chan *bytes.Buffer
 	closer      chan struct{}
+	closed      atomic.Bool
+	wait        sync.WaitGroup
+}
+
+func NewFileWriter(rotator LogRotator) LogWriter {
+	writer := &fileWriter{
+		rotator:    rotator,
+		cacheMutex: sync.RWMutex{},
+		logBuffer:  make(chan *bytes.Buffer, 4096),
+		closer:     make(chan struct{}, 2),
+		closed:     atomic.Bool{},
+		wait:       sync.WaitGroup{},
+	}
+	writer.wait.Add(1)
+	writer.closed.Store(false)
+	grace.RegisterGraceful(writer)
+
+	return writer
 }
 
 func (fw *fileWriter) WriteRaw(log *bytes.Buffer) {
-	fw.logBuffer <- log
+	if !fw.closed.Load() {
+		fw.logBuffer <- log
+
+		return
+	}
+
+	_, _ = fmt.Fprintln(os.Stderr, log.String())
 }
 
 func (fw *fileWriter) writeLog(log *bytes.Buffer) (err error) {
@@ -59,7 +85,12 @@ func (fw *fileWriter) writeLog(log *bytes.Buffer) (err error) {
 }
 
 func (fw *fileWriter) GracefulClose() {
+	fw.closed.Store(true)
 	fw.closer <- struct{}{}
+	fw.wait.Wait()
+
+	fw.cacheMutex.Lock()
+	defer fw.cacheMutex.Unlock()
 
 	close(fw.logBuffer)
 	for message := range fw.logBuffer {
@@ -68,18 +99,22 @@ func (fw *fileWriter) GracefulClose() {
 		}
 	}
 
-	_ = fw.writerCache.Close()
+	if fw.writerCache != nil {
+		_ = fw.writerCache.Close()
+		fw.writerCache = nil
+	}
 }
 
 func (fw *fileWriter) ListenAndServe() {
 	for {
 		select {
+		case <-fw.closer:
+			fw.wait.Done()
+			return
 		case log := <-fw.logBuffer:
 			if writeErr := fw.writeLog(log); writeErr != nil {
 				_, _ = fmt.Fprintln(os.Stderr, fmt.Sprintf(`{"log_error": %s, "raw_log": %s}`, writeErr.Error(), log.String()))
 			}
-		case <-fw.closer:
-			return
 		}
 	}
 }

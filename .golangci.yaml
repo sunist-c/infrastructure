@@ -1,8 +1,9 @@
+version: "2"
+
 run:
   tests: false
 linters:
   enable:
-    - gofumpt
     - errcheck
     - gocyclo
     - gosimple

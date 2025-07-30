@@ -6,6 +6,7 @@ type Basic struct {
 	TraceID  string
 	TracedAt time.Time
 	Instance string
+	Service  string
 }
 
 type Request struct {

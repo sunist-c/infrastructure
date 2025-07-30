@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/alioth-center/infrastructure/logger"
+	"github.com/alioth-center/infrastructure/trace"
 )
 
 type serviceLogger struct {
@@ -12,10 +13,13 @@ type serviceLogger struct {
 }
 
 func NewServiceLogger(logLevel logger.Level, writer logger.LogWriter) ServiceLogger {
-	return &serviceLogger{
+	slog := &serviceLogger{
 		logLevel: logLevel,
 		writer:   writer,
 	}
+	slog.Debug(NewField(trace.Background()).Messagef("service logger initialized"))
+
+	return slog
 }
 
 func (s *serviceLogger) Debug(field LogField) {
@@ -39,7 +43,7 @@ func (s *serviceLogger) Fatal(field LogField) {
 }
 
 func (s *serviceLogger) log(level logger.Level, field LogField) {
-	if !s.logLevel.ShouldLog(level) {
+	if level < s.logLevel {
 		return
 	}
 
