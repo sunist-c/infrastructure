@@ -37,6 +37,21 @@ func NewFileWriter(rotator LogRotator) LogWriter {
 	return writer
 }
 
+func NewGracefulFileWriter(rotator LogRotator) GracefulLogWriter {
+	writer := &fileWriter{
+		rotator:    rotator,
+		cacheMutex: sync.RWMutex{},
+		logBuffer:  make(chan *bytes.Buffer, 4096),
+		closer:     make(chan struct{}, 2),
+		closed:     atomic.Bool{},
+		wait:       sync.WaitGroup{},
+	}
+	writer.wait.Add(1)
+	writer.closed.Store(false)
+
+	return writer
+}
+
 func (fw *fileWriter) WriteRaw(log *bytes.Buffer) {
 	if !fw.closed.Load() {
 		fw.logBuffer <- log

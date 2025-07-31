@@ -1,13 +1,11 @@
 package logger_test
 
 import (
-	"github.com/alioth-center/infrastructure/grace"
 	"github.com/alioth-center/infrastructure/logger"
 	aslog "github.com/alioth-center/infrastructure/logger/service"
 	"github.com/alioth-center/infrastructure/trace"
 	"sync"
 	"testing"
-	"time"
 )
 
 var (
@@ -32,14 +30,13 @@ var (
 
 var (
 	slog aslog.ServiceLogger
-	once sync.Once
 )
 
 func init() {
 	trace.SetBackground("test-instance", "unittest")
 	rotator := logger.NewNoRotator("/dev/null")
-	writer := logger.NewFileWriter(rotator)
-	grace.ServeGraceful()
+	writer := logger.NewGracefulFileWriter(rotator)
+	go writer.ListenAndServe()
 	slog = aslog.NewServiceLogger(logger.LevelInfo, writer)
 }
 
@@ -56,8 +53,4 @@ func BenchmarkLogger(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		slog.Info(aslog.NewField(ctx).Messagef("hello! %s", "aslog"))
 	}
-
-	once.Do(func() {
-		time.Sleep(time.Second)
-	})
 }
