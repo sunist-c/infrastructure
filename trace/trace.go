@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/alioth-center/infrastructure/utils/generate"
 	"github.com/alioth-center/infrastructure/utils/values"
+	"os"
 	"time"
 )
 
@@ -22,6 +23,15 @@ func Trace(ctx context.Context) context.Context {
 		Instance: instance,
 		Service:  service,
 	})
+}
+
+func Fork(ctx context.Context) (forked context.Context) {
+	basic, success := GetTrace(ctx)
+	if !success {
+		panic("non-traced context")
+	}
+
+	return context.WithValue(context.Background(), BasicType, basic)
 }
 
 func GetTrace(ctx context.Context) (info *Basic, exist bool) {
@@ -47,5 +57,10 @@ func getFromContext[T any](ctx context.Context, t Type) (info T, exist bool) {
 }
 
 func SetBackground(i, s string) {
-	instance, service = i, s
+	instance, service, background = i, s, Trace(background)
+}
+
+func SetBackgroundFromEnv() {
+	i, s := os.Getenv("AT_INSTANCE"), os.Getenv("AT_SERVICE")
+	SetBackground(i, s)
 }

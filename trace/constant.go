@@ -8,7 +8,7 @@ var (
 	instance string
 	service  string
 
-	background = Trace(context.Background())
+	background = context.Background()
 )
 
 type Type string
