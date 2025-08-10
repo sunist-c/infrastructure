@@ -3,9 +3,10 @@ package aslog
 import (
 	"context"
 	"fmt"
-	"github.com/alioth-center/infrastructure/trace"
 	"strings"
 	"time"
+
+	"github.com/alioth-center/infrastructure/trace"
 )
 
 type field struct {

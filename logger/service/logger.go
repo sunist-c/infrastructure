@@ -3,6 +3,7 @@ package aslog
 import (
 	"bytes"
 	"encoding/json"
+
 	"github.com/alioth-center/infrastructure/logger"
 	"github.com/alioth-center/infrastructure/trace"
 )

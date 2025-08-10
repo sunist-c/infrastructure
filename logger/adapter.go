@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+
 	"github.com/alioth-center/infrastructure/grace"
 )
 

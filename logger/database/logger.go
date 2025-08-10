@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/alioth-center/infrastructure/logger"
 	"github.com/alioth-center/infrastructure/trace"
 	glogger "gorm.io/gorm/logger"
-	"time"
 )
 
 type databaseLogger struct {

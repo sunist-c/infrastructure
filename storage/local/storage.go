@@ -3,10 +3,11 @@ package local
 import (
 	"bytes"
 	"context"
-	"github.com/alioth-center/infrastructure/storage"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/alioth-center/infrastructure/storage"
 )
 
 type localStorage struct {

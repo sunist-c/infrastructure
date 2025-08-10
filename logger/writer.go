@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/alioth-center/infrastructure/grace"
 	"os"
 	"sync"
 	"sync/atomic"
+
+	"github.com/alioth-center/infrastructure/grace"
 )
 
 type fileWriter struct {

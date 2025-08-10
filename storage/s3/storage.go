@@ -3,6 +3,8 @@ package s3
 import (
 	"bytes"
 	"context"
+	"io"
+
 	"github.com/alioth-center/infrastructure/storage"
 	"github.com/alioth-center/infrastructure/trace"
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"io"
 )
 
 type s3Storage struct {

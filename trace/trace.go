@@ -2,10 +2,11 @@ package trace
 
 import (
 	"context"
-	"github.com/alioth-center/infrastructure/utils/generate"
-	"github.com/alioth-center/infrastructure/utils/values"
 	"os"
 	"time"
+
+	"github.com/alioth-center/infrastructure/utils/generate"
+	"github.com/alioth-center/infrastructure/utils/values"
 )
 
 func Background() context.Context {
