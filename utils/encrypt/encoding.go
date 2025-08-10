@@ -3,9 +3,12 @@ package encrypt
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 )
 
@@ -28,8 +31,7 @@ func AesEncrypt(message string, secret string) (encrypted string, err error) {
 	if _, buildIvErr := rand.Read(iv); buildIvErr != nil {
 		return "", buildIvErr
 	}
-
-	cipher.NewCFBEncrypter(block, iv).XORKeyStream(cipherText[aes.BlockSize:], plainTextBytes)
+	cipher.NewCTR(block, iv).XORKeyStream(cipherText[aes.BlockSize:], plainTextBytes)
 	encryptedString := base64.StdEncoding.EncodeToString(cipherText)
 
 	return encryptedString, nil
@@ -59,8 +61,7 @@ func AesDecrypt(encrypted string, secret string) (decrypted string, err error) {
 
 	iv := encryptedBytes[:aes.BlockSize]
 	encryptedBytes = encryptedBytes[aes.BlockSize:]
-
-	cipher.NewCFBDecrypter(block, iv).XORKeyStream(encryptedBytes, encryptedBytes)
+	cipher.NewCTR(block, iv).XORKeyStream(encryptedBytes, encryptedBytes)
 
 	return string(encryptedBytes), nil
 }
@@ -73,4 +74,15 @@ func HashMD5(message string) string {
 // HashEntryMD5 使用 MD5 算法计算结构体的哈希值
 func HashEntryMD5[T any](entry T) string {
 	return fmt.Sprintf("%x", md5.Sum([]byte(fmt.Sprintf("%#v", entry))))
+}
+
+func HmacSha256(message, secret string) string {
+	h := md5.New()
+	h.Write([]byte(secret))
+	key := h.Sum(nil)
+
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(message))
+
+	return hex.EncodeToString(mac.Sum(nil))
 }
